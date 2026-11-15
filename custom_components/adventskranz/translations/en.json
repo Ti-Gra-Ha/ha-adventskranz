@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Adventskranz",
+        "description": "Do you want to add the Adventskranz integration (sensors, test controls & dashboard card)?"
+      }
+    },
+    "abort": {
+      "already_configured": "Adventskranz is already configured."
+    }
+  }
+}
