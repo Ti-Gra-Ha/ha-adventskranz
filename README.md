@@ -78,5 +78,6 @@ max_width: 100%
 ### Eigene Grafiken verwenden
 Wenn du eigene Grafiken nutzen möchtest, kannst du entweder die Dateien `advent_0.png` bis `advent_5.png` im Ordner `/config/www/adventskranz/` ersetzen oder im visuellen Editor der Karte eigene Bildpfade eintragen.
 
-### Hinweis
-Bei den mitgelieferten Grafiken handelt es sich um KI-generierte Bilder (Nano Banana 2)
+# 🎨 Grafiken & Lizenz
+- **Lizenz:** MIT License (siehe [LICENSE](LICENSE))
+- **Grafiken:** Die mitgelieferten Adventskranz-Grafiken (`advent_0.png` bis `advent_5.png` sowie die Brand-Icons) wurden KI-gestützt mit **Google Nano Banana 2** erstellt und stehen ebenfalls frei unter der MIT-Lizenz zur Verfügung.
