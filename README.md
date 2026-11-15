@@ -4,8 +4,8 @@
   <img src="custom_components/adventskranz/brand/logo.png" alt="Adventskranz Logo" width="220" />
 </p>
 
-Eine komplette **Home Assistant Integration** inklusive **Custom Lovelace Dashboard-Karte** und **6 mitgelieferten Adventskranz-Grafiken (PNG)**.  
-Die Erweiterung berechnet automatisch für jedes Jahr die 4 Adventssonntage sowie den Sonntag nach dem 4. Advent und zeigt passend zum Datum den jeweiligen Zustand des Adventskranzes an.
+Eine virtueller Adventskranz für Home Assistant Integration als **Custom Lovelace Dashboard-Karte**.  
+Die Erweiterung berechnet automatisch für das aktuelle Jahr die 4 Adventssonntage und zeigt passend zum Datum den jeweiligen Zustand des Adventskranzes an.
 
 ---
 
@@ -77,3 +77,6 @@ max_width: 100%
 
 ### Eigene Grafiken verwenden
 Wenn du eigene Grafiken nutzen möchtest, kannst du entweder die Dateien `advent_0.png` bis `advent_5.png` im Ordner `/config/www/adventskranz/` ersetzen oder im visuellen Editor der Karte eigene Bildpfade eintragen.
+
+### Hinweis
+Bei den mitgelieferten Grafiken handelt es sich um KI-generierte Bilder (Nano Banana 2)
