@@ -24,7 +24,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-CARD_VERSION = "1.2.0"
+CARD_VERSION = "1.2.1"
 CARD_FILENAME = "adventskranz-card.js"
 CARD_RESOURCE_URL = f"/local/adventskranz/{CARD_FILENAME}?v={CARD_VERSION}"
 
