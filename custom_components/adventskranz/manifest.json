@@ -1,6 +1,10 @@
 {
   "domain": "adventskranz",
   "name": "Adventskranz",
+  "categories": [
+    "productivity_information.calendars_todos",
+    "helpers.calculate_value"
+  ],
   "codeowners": ["@Ti-Gra-Ha"],
   "config_flow": true,
   "dependencies": ["frontend", "http", "lovelace"],
