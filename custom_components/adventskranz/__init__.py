@@ -24,7 +24,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-CARD_VERSION = "1.2.1"
+CARD_VERSION = "1.2.2"
 CARD_FILENAME = "adventskranz-card.js"
 CARD_RESOURCE_URL = f"/local/adventskranz/{CARD_FILENAME}?v={CARD_VERSION}"
 
@@ -42,8 +42,8 @@ BRAND_FILES = (
 PNG_FILES = tuple(f"advent_{i}.png" for i in range(6))
 
 
-def _sync_assets_and_export(config_dir: str) -> None:
-    """Synchronize bundled frontend/brand assets with /config/www/adventskranz/."""
+def _sync_assets(config_dir: str) -> None:
+    """Deploy bundled frontend card and default PNG assets to /config/www/adventskranz/."""
     comp_dir = Path(__file__).parent
     frontend_dir = comp_dir / "frontend"
     brand_dir = comp_dir / "brand"
@@ -53,19 +53,21 @@ def _sync_assets_and_export(config_dir: str) -> None:
     brand_dir.mkdir(parents=True, exist_ok=True)
     www_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Bidirectional sync between /config/www/adventskranz and custom_components/adventskranz/frontend
-    for filename in (*PNG_FILES, CARD_FILENAME):
+    # 1. Always update adventskranz-card.js in /config/www/adventskranz/ from bundled frontend/
+    bundled_card = frontend_dir / CARD_FILENAME
+    www_card = www_dir / CARD_FILENAME
+    if bundled_card.is_file():
+        if not www_card.is_file() or bundled_card.read_bytes() != www_card.read_bytes():
+            shutil.copyfile(bundled_card, www_card)
+
+    # 2. Copy default PNGs to /config/www/adventskranz/ if they do not exist yet
+    for filename in PNG_FILES:
         www_file = www_dir / filename
         bundled_file = frontend_dir / filename
-        if www_file.is_file() and (
-            not bundled_file.is_file()
-            or www_file.stat().st_mtime > bundled_file.stat().st_mtime
-        ):
-            shutil.copyfile(www_file, bundled_file)
-        elif bundled_file.is_file() and not www_file.is_file():
+        if bundled_file.is_file() and not www_file.is_file():
             shutil.copyfile(bundled_file, www_file)
 
-    # 2. Ensure brand icons exist from advent_4.png
+    # 3. Ensure brand icons exist from advent_4.png
     source_brand_png = frontend_dir / "advent_4.png"
     if not source_brand_png.is_file():
         source_brand_png = www_dir / "advent_4.png"
@@ -78,26 +80,14 @@ def _sync_assets_and_export(config_dir: str) -> None:
             ):
                 shutil.copyfile(source_brand_png, target)
 
-    # 3. Clean any stale negative brand cache
+    # 4. Clean any stale negative brand cache
     stale_cache = Path(config_dir) / ".cache" / "brands" / "integrations" / DOMAIN
     if stale_cache.is_dir():
         shutil.rmtree(stale_cache, ignore_errors=True)
 
-    # 4. Copy custom_components/adventskranz into github_export/ha-adventskranz if present
-    export_root = Path(config_dir) / "github_export" / "ha-adventskranz"
-    if export_root.is_dir():
-        export_comp_dir = export_root / "custom_components" / DOMAIN
-        if export_comp_dir.is_dir():
-            shutil.rmtree(export_comp_dir, ignore_errors=True)
-        shutil.copytree(
-            comp_dir,
-            export_comp_dir,
-            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "brands_diag.txt"),
-        )
-
 
 async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
-    """Automatically register the Adventskranz Lovelace card resource in storage mode."""
+    """Automatically register or update the Adventskranz Lovelace card resource."""
     try:
         lovelace_data: Any = hass.data.get("lovelace")
         if not lovelace_data:
@@ -200,7 +190,7 @@ class AdventskranzState:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Adventskranz from a config entry."""
-    await hass.async_add_executor_job(_sync_assets_and_export, hass.config.path())
+    await hass.async_add_executor_job(_sync_assets, hass.config.path())
     await _async_register_lovelace_resource(hass)
 
     state = AdventskranzState(hass=hass, test_date=dt_util.now().date())
