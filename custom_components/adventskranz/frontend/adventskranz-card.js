@@ -201,6 +201,7 @@ class AdventskranzCard extends HTMLElement {
       test_date: "",
       test_phase: "auto",
       max_width: "100%",
+      max_height: "100%",
       image_0: DEFAULT_IMAGES[0],
       image_1: DEFAULT_IMAGES[1],
       image_2: DEFAULT_IMAGES[2],
@@ -232,6 +233,7 @@ class AdventskranzCard extends HTMLElement {
       test_date: "",
       test_phase: "auto",
       max_width: "100%",
+      max_height: "100%",
       image_0: DEFAULT_IMAGES[0],
       image_1: DEFAULT_IMAGES[1],
       image_2: DEFAULT_IMAGES[2],
@@ -330,6 +332,7 @@ class AdventskranzCard extends HTMLElement {
       show_status: this._config.show_status,
       transparent: this._config.transparent,
       max_width: this._config.max_width,
+      max_height: this._config.max_height,
       isTestMode,
       testLabel,
     });
@@ -341,19 +344,25 @@ class AdventskranzCard extends HTMLElement {
 
     const transparentClass = this._config.transparent ? "transparent" : "";
     const maxWidth = this._config.max_width || "100%";
+    const maxHeight = this._config.max_height || "100%";
 
     this.shadowRoot.innerHTML = `
       <style>
         :host {
           display: block;
+          height: 100%;
+          box-sizing: border-box;
         }
         ha-card {
+          height: 100%;
+          width: 100%;
           overflow: hidden;
           transition: all 0.25s ease-in-out;
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 16px;
+          justify-content: center;
+          padding: 12px;
           box-sizing: border-box;
         }
         ha-card.transparent {
@@ -363,24 +372,33 @@ class AdventskranzCard extends HTMLElement {
           padding: 0;
         }
         .card-title {
+          flex: 0 0 auto;
           width: 100%;
-          font-size: 1.2rem;
+          font-size: 1.15rem;
           font-weight: 500;
           color: var(--primary-text-color);
-          margin-bottom: 12px;
+          margin-bottom: 8px;
           text-align: center;
         }
         .image-wrapper {
+          flex: 1 1 auto;
+          min-height: 0;
+          min-width: 0;
           width: 100%;
+          height: 100%;
           max-width: ${maxWidth};
+          max-height: ${maxHeight};
           display: flex;
           justify-content: center;
           align-items: center;
           position: relative;
+          overflow: hidden;
         }
         .wreath-image {
           width: 100%;
-          height: auto;
+          height: 100%;
+          max-width: 100%;
+          max-height: 100%;
           display: block;
           object-fit: contain;
           border-radius: var(--ha-card-border-radius, 12px);
@@ -389,7 +407,8 @@ class AdventskranzCard extends HTMLElement {
           border-radius: 0;
         }
         .status-badge {
-          margin-top: 10px;
+          flex: 0 0 auto;
+          margin-top: 8px;
           font-size: 0.95rem;
           font-weight: 500;
           color: var(--secondary-text-color);
@@ -410,21 +429,29 @@ class AdventskranzCard extends HTMLElement {
         }
         .fallback-container {
           width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
           text-align: center;
           padding: 8px 4px;
+          box-sizing: border-box;
         }
         .fallback-svg {
           width: 100%;
+          height: 100%;
           max-width: 320px;
-          height: auto;
+          max-height: 100%;
           margin: 0 auto;
           display: block;
         }
         .fallback-hint {
-          margin-top: 8px;
-          font-size: 0.82rem;
+          flex: 0 0 auto;
+          margin-top: 6px;
+          font-size: 0.8rem;
           color: var(--secondary-text-color);
-          line-height: 1.4;
+          line-height: 1.35;
         }
         .fallback-hint code {
           background: rgba(127, 127, 127, 0.15);
@@ -465,6 +492,20 @@ class AdventskranzCard extends HTMLElement {
   getCardSize() {
     return 4;
   }
+
+  /**
+   * Support Home Assistant Sections view resizing (both columns/width and rows/height).
+   */
+  getGridOptions() {
+    return {
+      columns: 6,
+      rows: 4,
+      min_columns: 1,
+      max_columns: 12,
+      min_rows: 1,
+      max_rows: 12,
+    };
+  }
 }
 
 /**
@@ -501,6 +542,7 @@ class AdventskranzCardEditor extends HTMLElement {
     const fields = [
       "title",
       "max_width",
+      "max_height",
       "test_date",
       "test_phase",
       "image_0",
@@ -575,6 +617,11 @@ class AdventskranzCardEditor extends HTMLElement {
           flex-direction: column;
           gap: 4px;
         }
+        .two-col {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
         .date-input-row {
           display: flex;
           gap: 8px;
@@ -633,9 +680,15 @@ class AdventskranzCardEditor extends HTMLElement {
           <input type="text" data-field="title" placeholder="z. B. Adventskranz" />
         </div>
 
-        <div class="row">
-          <label>Maximale Bildbreite (z. B. 100% oder 350px)</label>
-          <input type="text" data-field="max_width" placeholder="100%" />
+        <div class="two-col">
+          <div class="row">
+            <label>Max. Bildbreite (z. B. 100% oder 350px)</label>
+            <input type="text" data-field="max_width" placeholder="100%" />
+          </div>
+          <div class="row">
+            <label>Max. Bildhöhe (z. B. 100% oder 250px)</label>
+            <input type="text" data-field="max_height" placeholder="100%" />
+          </div>
         </div>
 
         <div class="checkbox-row">

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
+import hashlib
 import logging
 from pathlib import Path
 import shutil
@@ -24,9 +25,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-CARD_VERSION = "1.2.2"
+CARD_VERSION = "1.2.3"
 CARD_FILENAME = "adventskranz-card.js"
-CARD_RESOURCE_URL = f"/local/adventskranz/{CARD_FILENAME}?v={CARD_VERSION}"
 
 BRAND_FILES = (
     "icon.png",
@@ -42,7 +42,7 @@ BRAND_FILES = (
 PNG_FILES = tuple(f"advent_{i}.png" for i in range(6))
 
 
-def _sync_assets(config_dir: str) -> None:
+def _sync_assets(config_dir: str) -> str:
     """Deploy bundled frontend card and default PNG assets to /config/www/adventskranz/."""
     comp_dir = Path(__file__).parent
     frontend_dir = comp_dir / "frontend"
@@ -56,8 +56,11 @@ def _sync_assets(config_dir: str) -> None:
     # 1. Always update adventskranz-card.js in /config/www/adventskranz/ from bundled frontend/
     bundled_card = frontend_dir / CARD_FILENAME
     www_card = www_dir / CARD_FILENAME
+    card_hash = ""
     if bundled_card.is_file():
-        if not www_card.is_file() or bundled_card.read_bytes() != www_card.read_bytes():
+        bundled_bytes = bundled_card.read_bytes()
+        card_hash = hashlib.sha256(bundled_bytes).hexdigest()[:8]
+        if not www_card.is_file() or bundled_bytes != www_card.read_bytes():
             shutil.copyfile(bundled_card, www_card)
 
     # 2. Copy default PNGs to /config/www/adventskranz/ if they do not exist yet
@@ -85,8 +88,13 @@ def _sync_assets(config_dir: str) -> None:
     if stale_cache.is_dir():
         shutil.rmtree(stale_cache, ignore_errors=True)
 
+    version_tag = f"{CARD_VERSION}-{card_hash}" if card_hash else CARD_VERSION
+    return f"/local/adventskranz/{CARD_FILENAME}?v={version_tag}"
 
-async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
+
+async def _async_register_lovelace_resource(
+    hass: HomeAssistant, resource_url: str
+) -> None:
     """Automatically register or update the Adventskranz Lovelace card resource."""
     try:
         lovelace_data: Any = hass.data.get("lovelace")
@@ -101,17 +109,17 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         for item in resources.async_items():
             url = item.get("url", "")
             if CARD_FILENAME in url:
-                if url != CARD_RESOURCE_URL:
+                if url != resource_url:
                     await resources.async_update_item(
                         item["id"],
-                        {"res_type": "module", "url": CARD_RESOURCE_URL},
+                        {"res_type": "module", "url": resource_url},
                     )
                 return
 
         await resources.async_create_item(
-            {"res_type": "module", "url": CARD_RESOURCE_URL}
+            {"res_type": "module", "url": resource_url}
         )
-        _LOGGER.info("Registered Lovelace resource: %s", CARD_RESOURCE_URL)
+        _LOGGER.info("Registered Lovelace resource: %s", resource_url)
     except Exception as exc:  # noqa: BLE001
         _LOGGER.debug("Could not auto-register Lovelace resource: %s", exc)
 
@@ -190,8 +198,10 @@ class AdventskranzState:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Adventskranz from a config entry."""
-    await hass.async_add_executor_job(_sync_assets, hass.config.path())
-    await _async_register_lovelace_resource(hass)
+    resource_url = await hass.async_add_executor_job(
+        _sync_assets, hass.config.path()
+    )
+    await _async_register_lovelace_resource(hass, resource_url)
 
     state = AdventskranzState(hass=hass, test_date=dt_util.now().date())
 
