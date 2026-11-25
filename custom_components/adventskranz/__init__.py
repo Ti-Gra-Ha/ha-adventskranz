@@ -11,6 +11,7 @@ from typing import Any, Callable
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.util import dt as dt_util
 
@@ -25,20 +26,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-CARD_VERSION = "1.2.3"
+CARD_VERSION = "1.2.4"
 CARD_FILENAME = "adventskranz-card.js"
-
-BRAND_FILES = (
-    "icon.png",
-    "icon@2x.png",
-    "logo.png",
-    "logo@2x.png",
-    "dark_icon.png",
-    "dark_icon@2x.png",
-    "dark_logo.png",
-    "dark_logo@2x.png",
-)
-
 PNG_FILES = tuple(f"advent_{i}.png" for i in range(6))
 
 
@@ -46,11 +35,8 @@ def _sync_assets(config_dir: str) -> str:
     """Deploy bundled frontend card and default PNG assets to /config/www/adventskranz/."""
     comp_dir = Path(__file__).parent
     frontend_dir = comp_dir / "frontend"
-    brand_dir = comp_dir / "brand"
     www_dir = Path(config_dir) / "www" / "adventskranz"
 
-    frontend_dir.mkdir(parents=True, exist_ok=True)
-    brand_dir.mkdir(parents=True, exist_ok=True)
     www_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Always update adventskranz-card.js in /config/www/adventskranz/ from bundled frontend/
@@ -70,26 +56,20 @@ def _sync_assets(config_dir: str) -> str:
         if bundled_file.is_file() and not www_file.is_file():
             shutil.copyfile(bundled_file, www_file)
 
-    # 3. Ensure brand icons exist from advent_4.png
-    source_brand_png = frontend_dir / "advent_4.png"
-    if not source_brand_png.is_file():
-        source_brand_png = www_dir / "advent_4.png"
-    if source_brand_png.is_file():
-        for filename in BRAND_FILES:
-            target = brand_dir / filename
-            if (
-                not target.is_file()
-                or target.stat().st_size != source_brand_png.stat().st_size
-            ):
-                shutil.copyfile(source_brand_png, target)
-
-    # 4. Clean any stale negative brand cache
+    # 3. Clean any stale negative brand cache
     stale_cache = Path(config_dir) / ".cache" / "brands" / "integrations" / DOMAIN
     if stale_cache.is_dir():
         shutil.rmtree(stale_cache, ignore_errors=True)
 
     version_tag = f"{CARD_VERSION}-{card_hash}" if card_hash else CARD_VERSION
     return f"/local/adventskranz/{CARD_FILENAME}?v={version_tag}"
+
+
+def _remove_www_assets(config_dir: str) -> None:
+    """Remove /config/www/adventskranz/ when the integration entry is removed."""
+    www_dir = Path(config_dir) / "www" / "adventskranz"
+    if www_dir.is_dir():
+        shutil.rmtree(www_dir, ignore_errors=True)
 
 
 async def _async_register_lovelace_resource(
@@ -122,6 +102,26 @@ async def _async_register_lovelace_resource(
         _LOGGER.info("Registered Lovelace resource: %s", resource_url)
     except Exception as exc:  # noqa: BLE001
         _LOGGER.debug("Could not auto-register Lovelace resource: %s", exc)
+
+
+async def _async_unregister_lovelace_resource(hass: HomeAssistant) -> None:
+    """Remove the Adventskranz Lovelace card resource when the entry is deleted."""
+    try:
+        lovelace_data: Any = hass.data.get("lovelace")
+        if not lovelace_data:
+            return
+        resources = getattr(lovelace_data, "resources", None)
+        if not resources:
+            return
+        if not getattr(resources, "loaded", True):
+            await resources.async_load()
+
+        for item in list(resources.async_items()):
+            url = item.get("url", "")
+            if CARD_FILENAME in url:
+                await resources.async_delete_item(item["id"])
+    except Exception as exc:  # noqa: BLE001
+        _LOGGER.debug("Could not unregister Lovelace resource: %s", exc)
 
 
 @dataclass
@@ -198,6 +198,12 @@ class AdventskranzState:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Adventskranz from a config entry."""
+    # Remove any orphaned entity registry entries from previous installs so entity_ids never get a _2 suffix
+    ent_reg = er.async_get(hass)
+    for ent in list(ent_reg.entities.values()):
+        if ent.platform == DOMAIN and ent.config_entry_id != entry.entry_id:
+            ent_reg.async_remove(ent.entity_id)
+
     resource_url = await hass.async_add_executor_job(
         _sync_assets, hass.config.path()
     )
@@ -226,3 +232,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if state.unsub_midnight:
             state.unsub_midnight()
     return unload_ok
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Clean up Lovelace resource and /config/www/adventskranz when entry is deleted."""
+    await _async_unregister_lovelace_resource(hass)
+    await hass.async_add_executor_job(_remove_www_assets, hass.config.path())
