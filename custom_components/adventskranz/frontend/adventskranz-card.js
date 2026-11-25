@@ -252,18 +252,49 @@ class AdventskranzCard extends HTMLElement {
     this._render();
   }
 
-  _resolveState() {
-    // 1. Card-level simulated test_date (calculates phase from entered date)
-    const parsedTestDate = parseLocalDateString(this._config.test_date);
-    if (parsedTestDate) {
-      return {
-        phaseIndex: getPhaseForDate(parsedTestDate),
-        isTestMode: true,
-        testLabel: `Test-Datum: ${formatGermanDate(parsedTestDate)}`,
-      };
+  /**
+   * Locate the active Adventskranz status sensor in hass.states, even if its entity_id has a suffix (_2)
+   */
+  _findAdventskranzSensor() {
+    if (!this._hass || !this._hass.states) return null;
+    const configuredId = this._config.entity || "sensor.adventskranz_status";
+    const candidates = [];
+
+    const direct = this._hass.states[configuredId];
+    if (
+      direct &&
+      direct.state !== "unavailable" &&
+      direct.state !== "unknown" &&
+      direct.attributes &&
+      typeof direct.attributes.phase === "number"
+    ) {
+      candidates.push(direct);
     }
 
-    // 2. Card-level manual phase override
+    for (const [entId, stateObj] of Object.entries(this._hass.states)) {
+      if (
+        entId.startsWith("sensor.") &&
+        stateObj &&
+        stateObj.state !== "unavailable" &&
+        stateObj.state !== "unknown" &&
+        stateObj.attributes &&
+        typeof stateObj.attributes.phase === "number" &&
+        stateObj.attributes.advent_1 !== undefined
+      ) {
+        if (!candidates.includes(stateObj)) {
+          candidates.push(stateObj);
+        }
+      }
+    }
+
+    if (candidates.length === 0) return null;
+    // Prefer any candidate that currently has an active test override in HA settings
+    const overridden = candidates.find((c) => Boolean(c.attributes.is_test_override));
+    return overridden || candidates[0];
+  }
+
+  _resolveState() {
+    // 1. Card-level manual phase override
     const testPhase = this._config.test_phase;
     if (
       testPhase !== undefined &&
@@ -281,10 +312,19 @@ class AdventskranzCard extends HTMLElement {
       }
     }
 
+    // 2. Card-level simulated test_date (calculates phase from entered date)
+    const parsedTestDate = parseLocalDateString(this._config.test_date);
+    if (parsedTestDate) {
+      return {
+        phaseIndex: getPhaseForDate(parsedTestDate),
+        isTestMode: true,
+        testLabel: `Test-Datum: ${formatGermanDate(parsedTestDate)}`,
+      };
+    }
+
     // 3. Home Assistant sensor (if enabled and available)
     if (this._config.use_sensor !== false && this._hass) {
-      const entityId = this._config.entity || "sensor.adventskranz_status";
-      const stateObj = this._hass.states[entityId];
+      const stateObj = this._findAdventskranzSensor();
       if (stateObj && stateObj.attributes && typeof stateObj.attributes.phase === "number") {
         const sensorPhase = stateObj.attributes.phase;
         if (sensorPhase >= 0 && sensorPhase <= 5) {
@@ -768,6 +808,7 @@ class AdventskranzCardEditor extends HTMLElement {
         this._config = {
           ...this._config,
           test_date: "",
+          test_phase: "auto",
         };
         this._updateValues();
         this.dispatchEvent(
@@ -789,11 +830,17 @@ class AdventskranzCardEditor extends HTMLElement {
         const field = e.target.getAttribute("data-field");
         if (!field) return;
         const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        const updates = { [field]: value };
+        if (field === "test_phase" && value !== "auto") {
+          updates.test_date = "";
+        } else if (field === "test_date" && value) {
+          updates.test_phase = "auto";
+        }
         this._config = {
           ...this._config,
-          [field]: value,
+          ...updates,
         };
-        this._updateDatePreviewInfo();
+        this._updateValues();
         this.dispatchEvent(
           new CustomEvent("config-changed", {
             detail: { config: this._config },
