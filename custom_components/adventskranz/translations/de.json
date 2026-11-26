@@ -7,7 +7,8 @@
       }
     },
     "abort": {
-      "already_configured": "Adventskranz ist bereits eingerichtet."
+      "already_configured": "Adventskranz ist bereits eingerichtet.",
+      "single_instance_allowed": "Adventskranz ist bereits eingerichtet. Es ist nur eine einzige Instanz möglich."
     }
   }
 }

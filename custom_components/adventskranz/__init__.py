@@ -6,9 +6,9 @@ from datetime import date
 import hashlib
 import logging
 from pathlib import Path
-import shutil
 from typing import Any, Callable
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
@@ -19,6 +19,7 @@ from .const import (
     DOMAIN,
     PHASES,
     PLATFORMS,
+    STATIC_URL_BASE,
     PhaseInfo,
     calculate_advent_dates,
     get_phase_for_date,
@@ -26,50 +27,18 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-CARD_VERSION = "1.2.4"
+CARD_VERSION = "1.2.5"
 CARD_FILENAME = "adventskranz-card.js"
-PNG_FILES = tuple(f"advent_{i}.png" for i in range(6))
 
 
-def _sync_assets(config_dir: str) -> str:
-    """Deploy bundled frontend card and default PNG assets to /config/www/adventskranz/."""
-    comp_dir = Path(__file__).parent
-    frontend_dir = comp_dir / "frontend"
-    www_dir = Path(config_dir) / "www" / "adventskranz"
-
-    www_dir.mkdir(parents=True, exist_ok=True)
-
-    # 1. Always update adventskranz-card.js in /config/www/adventskranz/ from bundled frontend/
+def _compute_card_resource_url(frontend_dir: Path) -> str:
+    """Build the Lovelace resource URL with a short SHA-256 content hash."""
     bundled_card = frontend_dir / CARD_FILENAME
-    www_card = www_dir / CARD_FILENAME
     card_hash = ""
     if bundled_card.is_file():
-        bundled_bytes = bundled_card.read_bytes()
-        card_hash = hashlib.sha256(bundled_bytes).hexdigest()[:8]
-        if not www_card.is_file() or bundled_bytes != www_card.read_bytes():
-            shutil.copyfile(bundled_card, www_card)
-
-    # 2. Copy default PNGs to /config/www/adventskranz/ if they do not exist yet
-    for filename in PNG_FILES:
-        www_file = www_dir / filename
-        bundled_file = frontend_dir / filename
-        if bundled_file.is_file() and not www_file.is_file():
-            shutil.copyfile(bundled_file, www_file)
-
-    # 3. Clean any stale negative brand cache
-    stale_cache = Path(config_dir) / ".cache" / "brands" / "integrations" / DOMAIN
-    if stale_cache.is_dir():
-        shutil.rmtree(stale_cache, ignore_errors=True)
-
+        card_hash = hashlib.sha256(bundled_card.read_bytes()).hexdigest()[:8]
     version_tag = f"{CARD_VERSION}-{card_hash}" if card_hash else CARD_VERSION
-    return f"/local/adventskranz/{CARD_FILENAME}?v={version_tag}"
-
-
-def _remove_www_assets(config_dir: str) -> None:
-    """Remove /config/www/adventskranz/ when the integration entry is removed."""
-    www_dir = Path(config_dir) / "www" / "adventskranz"
-    if www_dir.is_dir():
-        shutil.rmtree(www_dir, ignore_errors=True)
+    return f"{STATIC_URL_BASE}/{CARD_FILENAME}?v={version_tag}"
 
 
 async def _async_register_lovelace_resource(
@@ -204,8 +173,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if ent.platform == DOMAIN and ent.config_entry_id != entry.entry_id:
             ent_reg.async_remove(ent.entity_id)
 
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    frontend_dir = Path(__file__).parent / "frontend"
+
+    if not domain_data.get("static_registered") and getattr(hass, "http", None) is not None:
+        await hass.http.async_register_static_paths(
+            [
+                StaticPathConfig(
+                    STATIC_URL_BASE,
+                    str(frontend_dir),
+                    cache_headers=False,
+                )
+            ]
+        )
+        domain_data["static_registered"] = True
+
     resource_url = await hass.async_add_executor_job(
-        _sync_assets, hass.config.path()
+        _compute_card_resource_url, frontend_dir
     )
     await _async_register_lovelace_resource(hass, resource_url)
 
@@ -219,7 +203,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass, _handle_midnight, hour=0, minute=0, second=1
     )
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = state
+    domain_data[entry.entry_id] = state
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -235,6 +219,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Clean up Lovelace resource and /config/www/adventskranz when entry is deleted."""
+    """Clean up Lovelace resource when entry is deleted."""
     await _async_unregister_lovelace_resource(hass)
-    await hass.async_add_executor_job(_remove_www_assets, hass.config.path())

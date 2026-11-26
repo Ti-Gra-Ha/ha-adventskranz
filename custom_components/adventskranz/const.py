@@ -6,6 +6,7 @@ from typing import TypedDict
 
 DOMAIN = "adventskranz"
 PLATFORMS = ["sensor", "select", "date"]
+STATIC_URL_BASE = "/adventskranz_static"
 
 
 class PhaseInfo(TypedDict):
@@ -26,7 +27,7 @@ PHASES: dict[int, PhaseInfo] = {
         "short_label": "Vor dem 1. Advent",
         "candles_lit": 0,
         "burned_down": False,
-        "default_image": "/local/adventskranz/advent_0.png",
+        "default_image": f"{STATIC_URL_BASE}/advent_0.png",
     },
     1: {
         "phase": 1,
@@ -35,7 +36,7 @@ PHASES: dict[int, PhaseInfo] = {
         "short_label": "1. Advent",
         "candles_lit": 1,
         "burned_down": False,
-        "default_image": "/local/adventskranz/advent_1.png",
+        "default_image": f"{STATIC_URL_BASE}/advent_1.png",
     },
     2: {
         "phase": 2,
@@ -44,7 +45,7 @@ PHASES: dict[int, PhaseInfo] = {
         "short_label": "2. Advent",
         "candles_lit": 2,
         "burned_down": False,
-        "default_image": "/local/adventskranz/advent_2.png",
+        "default_image": f"{STATIC_URL_BASE}/advent_2.png",
     },
     3: {
         "phase": 3,
@@ -53,7 +54,7 @@ PHASES: dict[int, PhaseInfo] = {
         "short_label": "3. Advent",
         "candles_lit": 3,
         "burned_down": False,
-        "default_image": "/local/adventskranz/advent_3.png",
+        "default_image": f"{STATIC_URL_BASE}/advent_3.png",
     },
     4: {
         "phase": 4,
@@ -62,7 +63,7 @@ PHASES: dict[int, PhaseInfo] = {
         "short_label": "4. Advent",
         "candles_lit": 4,
         "burned_down": False,
-        "default_image": "/local/adventskranz/advent_4.png",
+        "default_image": f"{STATIC_URL_BASE}/advent_4.png",
     },
     5: {
         "phase": 5,
@@ -71,7 +72,7 @@ PHASES: dict[int, PhaseInfo] = {
         "short_label": "Nach dem 4. Advent",
         "candles_lit": 0,
         "burned_down": True,
-        "default_image": "/local/adventskranz/advent_5.png",
+        "default_image": f"{STATIC_URL_BASE}/advent_5.png",
     },
 }
 

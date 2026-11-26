@@ -4,6 +4,15 @@
  */
 
 const DEFAULT_IMAGES = [
+  "/adventskranz_static/advent_0.png",
+  "/adventskranz_static/advent_1.png",
+  "/adventskranz_static/advent_2.png",
+  "/adventskranz_static/advent_3.png",
+  "/adventskranz_static/advent_4.png",
+  "/adventskranz_static/advent_5.png",
+];
+
+const LEGACY_IMAGES = [
   "/local/adventskranz/advent_0.png",
   "/local/adventskranz/advent_1.png",
   "/local/adventskranz/advent_2.png",
@@ -121,9 +130,9 @@ function getPhaseForDate(now = new Date()) {
 }
 
 /**
- * Generate an inline SVG fallback illustration when the PNG file is not yet placed in /local/adventskranz/
+ * Generate an inline SVG fallback element when the PNG file cannot be loaded.
  */
-function renderFallbackSvg(phaseIndex, expectedPath) {
+function createFallbackElement(phaseIndex, expectedPath) {
   const meta = PHASE_META[phaseIndex] || PHASE_META[0];
   const candleHeight = meta.burnedDown ? 28 : 68;
   const candleY = meta.burnedDown ? 92 : 52;
@@ -150,41 +159,163 @@ function renderFallbackSvg(phaseIndex, expectedPath) {
     })
     .join("");
 
-  return `
-    <div class="fallback-container">
-      <svg viewBox="0 0 340 190" class="fallback-svg" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="candleRed" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#b71c1c" />
-            <stop offset="45%" stop-color="#e53935" />
-            <stop offset="100%" stop-color="#8e1414" />
-          </linearGradient>
-          <radialGradient id="flameOuter" cx="50%" cy="60%" r="50%">
-            <stop offset="0%" stop-color="#ffee58" />
-            <stop offset="65%" stop-color="#fb8c00" />
-            <stop offset="100%" stop-color="#e65100" stop-opacity="0" />
-          </radialGradient>
-          <linearGradient id="wreathGreen" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#2e7d32" />
-            <stop offset="100%" stop-color="#1b5e20" />
-          </linearGradient>
-        </defs>
-        <ellipse cx="170" cy="132" rx="135" ry="28" fill="url(#wreathGreen)" stroke="#144517" stroke-width="3" />
-        <ellipse cx="170" cy="126" rx="122" ry="18" fill="#388e3c" opacity="0.55" />
-        <circle cx="65" cy="132" r="5" fill="#d32f2f" />
-        <circle cx="115" cy="142" r="5" fill="#d32f2f" />
-        <circle cx="170" cy="145" r="5" fill="#d32f2f" />
-        <circle cx="225" cy="142" r="5" fill="#d32f2f" />
-        <circle cx="275" cy="132" r="5" fill="#d32f2f" />
-        ${candlesSvg}
-      </svg>
-      <div class="fallback-hint">
-        Vorschau-Grafik (${meta.fullLabel})<br/>
-        <small>Erwartete PNG-Datei: <code>${expectedPath}</code></small>
-      </div>
-    </div>
+  const container = document.createElement("div");
+  container.className = "fallback-container";
+  container.innerHTML = `
+    <svg viewBox="0 0 340 190" class="fallback-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="candleRed" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#b71c1c" />
+          <stop offset="45%" stop-color="#e53935" />
+          <stop offset="100%" stop-color="#8e1414" />
+        </linearGradient>
+        <radialGradient id="flameOuter" cx="50%" cy="60%" r="50%">
+          <stop offset="0%" stop-color="#ffee58" />
+          <stop offset="65%" stop-color="#fb8c00" />
+          <stop offset="100%" stop-color="#e65100" stop-opacity="0" />
+        </radialGradient>
+        <linearGradient id="wreathGreen" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#2e7d32" />
+          <stop offset="100%" stop-color="#1b5e20" />
+        </linearGradient>
+      </defs>
+      <ellipse cx="170" cy="132" rx="135" ry="28" fill="url(#wreathGreen)" stroke="#144517" stroke-width="3" />
+      <ellipse cx="170" cy="126" rx="122" ry="18" fill="#388e3c" opacity="0.55" />
+      <circle cx="65" cy="132" r="5" fill="#d32f2f" />
+      <circle cx="115" cy="142" r="5" fill="#d32f2f" />
+      <circle cx="170" cy="145" r="5" fill="#d32f2f" />
+      <circle cx="225" cy="142" r="5" fill="#d32f2f" />
+      <circle cx="275" cy="132" r="5" fill="#d32f2f" />
+      ${candlesSvg}
+    </svg>
   `;
+
+  const hint = document.createElement("div");
+  hint.className = "fallback-hint";
+  const titleLine = document.createElement("div");
+  titleLine.textContent = `Vorschau-Grafik (${meta.fullLabel})`;
+  const smallLine = document.createElement("small");
+  smallLine.textContent = "Erwartete PNG-Datei: ";
+  const codeEl = document.createElement("code");
+  codeEl.textContent = expectedPath;
+  smallLine.appendChild(codeEl);
+  hint.appendChild(titleLine);
+  hint.appendChild(smallLine);
+  container.appendChild(hint);
+
+  return container;
 }
+
+const CARD_STYLES = `
+  :host {
+    display: block;
+    height: 100%;
+    box-sizing: border-box;
+  }
+  ha-card {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    transition: all 0.25s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    box-sizing: border-box;
+  }
+  ha-card.transparent {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0;
+  }
+  .card-title {
+    flex: 0 0 auto;
+    width: 100%;
+    font-size: 1.15rem;
+    font-weight: 500;
+    color: var(--primary-text-color);
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .image-wrapper {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .wreath-image {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+    object-fit: contain;
+    border-radius: var(--ha-card-border-radius, 12px);
+  }
+  ha-card.transparent .wreath-image {
+    border-radius: 0;
+  }
+  .status-badge {
+    flex: 0 0 auto;
+    margin-top: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--secondary-text-color);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .test-pill {
+    font-size: 0.72rem;
+    background: var(--warning-color, #ff9800);
+    color: #fff;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .fallback-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 8px 4px;
+    box-sizing: border-box;
+  }
+  .fallback-svg {
+    width: 100%;
+    height: 100%;
+    max-width: 320px;
+    max-height: 100%;
+    margin: 0 auto;
+    display: block;
+  }
+  .fallback-hint {
+    flex: 0 0 auto;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: var(--secondary-text-color);
+    line-height: 1.35;
+  }
+  .fallback-hint code {
+    background: rgba(127, 127, 127, 0.15);
+    padding: 2px 5px;
+    border-radius: 4px;
+  }
+`;
 
 class AdventskranzCard extends HTMLElement {
   static getConfigElement() {
@@ -353,7 +484,11 @@ class AdventskranzCard extends HTMLElement {
 
   _getImageForPhase(phaseIndex) {
     const key = `image_${phaseIndex}`;
-    return this._config[key] || DEFAULT_IMAGES[phaseIndex] || DEFAULT_IMAGES[0];
+    const configured = this._config[key];
+    if (!configured || configured === LEGACY_IMAGES[phaseIndex]) {
+      return DEFAULT_IMAGES[phaseIndex] || DEFAULT_IMAGES[0];
+    }
+    return configured;
   }
 
   _render() {
@@ -382,151 +517,65 @@ class AdventskranzCard extends HTMLElement {
     }
     this._lastRenderSignature = signature;
 
-    const transparentClass = this._config.transparent ? "transparent" : "";
-    const maxWidth = this._config.max_width || "100%";
-    const maxHeight = this._config.max_height || "100%";
+    this.shadowRoot.textContent = "";
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-          height: 100%;
-          box-sizing: border-box;
-        }
-        ha-card {
-          height: 100%;
-          width: 100%;
-          overflow: hidden;
-          transition: all 0.25s ease-in-out;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 12px;
-          box-sizing: border-box;
-        }
-        ha-card.transparent {
-          background: transparent !important;
-          box-shadow: none !important;
-          border: none !important;
-          padding: 0;
-        }
-        .card-title {
-          flex: 0 0 auto;
-          width: 100%;
-          font-size: 1.15rem;
-          font-weight: 500;
-          color: var(--primary-text-color);
-          margin-bottom: 8px;
-          text-align: center;
-        }
-        .image-wrapper {
-          flex: 1 1 auto;
-          min-height: 0;
-          min-width: 0;
-          width: 100%;
-          height: 100%;
-          max-width: ${maxWidth};
-          max-height: ${maxHeight};
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          position: relative;
-          overflow: hidden;
-        }
-        .wreath-image {
-          width: 100%;
-          height: 100%;
-          max-width: 100%;
-          max-height: 100%;
-          display: block;
-          object-fit: contain;
-          border-radius: var(--ha-card-border-radius, 12px);
-        }
-        ha-card.transparent .wreath-image {
-          border-radius: 0;
-        }
-        .status-badge {
-          flex: 0 0 auto;
-          margin-top: 8px;
-          font-size: 0.95rem;
-          font-weight: 500;
-          color: var(--secondary-text-color);
-          text-align: center;
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          justify-content: center;
-          gap: 6px;
-        }
-        .test-pill {
-          font-size: 0.72rem;
-          background: var(--warning-color, #ff9800);
-          color: #fff;
-          padding: 2px 7px;
-          border-radius: 999px;
-          font-weight: 600;
-        }
-        .fallback-container {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          text-align: center;
-          padding: 8px 4px;
-          box-sizing: border-box;
-        }
-        .fallback-svg {
-          width: 100%;
-          height: 100%;
-          max-width: 320px;
-          max-height: 100%;
-          margin: 0 auto;
-          display: block;
-        }
-        .fallback-hint {
-          flex: 0 0 auto;
-          margin-top: 6px;
-          font-size: 0.8rem;
-          color: var(--secondary-text-color);
-          line-height: 1.35;
-        }
-        .fallback-hint code {
-          background: rgba(127, 127, 127, 0.15);
-          padding: 2px 5px;
-          border-radius: 4px;
-        }
-      </style>
-      <ha-card class="${transparentClass}">
-        ${this._config.title ? `<div class="card-title">${this._config.title}</div>` : ""}
-        <div class="image-wrapper">
-          ${
-            isFailed
-              ? renderFallbackSvg(phaseIndex, imageUrl)
-              : `<img class="wreath-image" src="${imageUrl}" alt="${meta.fullLabel}" />`
-          }
-        </div>
-        ${
-          this._config.show_status
-            ? `<div class="status-badge">
-                <span>${meta.shortLabel}</span>
-                ${isTestMode ? `<span class="test-pill">${testLabel}</span>` : ""}
-              </div>`
-            : ""
-        }
-      </ha-card>
-    `;
+    const styleEl = document.createElement("style");
+    styleEl.textContent = CARD_STYLES;
+    this.shadowRoot.appendChild(styleEl);
 
-    const imgEl = this.shadowRoot.querySelector(".wreath-image");
-    if (imgEl) {
+    const cardEl = document.createElement("ha-card");
+    if (this._config.transparent) {
+      cardEl.classList.add("transparent");
+    }
+
+    if (this._config.title) {
+      const titleEl = document.createElement("div");
+      titleEl.className = "card-title";
+      titleEl.textContent = String(this._config.title);
+      cardEl.appendChild(titleEl);
+    }
+
+    const wrapperEl = document.createElement("div");
+    wrapperEl.className = "image-wrapper";
+    wrapperEl.style.maxWidth = String(this._config.max_width || "100%");
+    wrapperEl.style.maxHeight = String(this._config.max_height || "100%");
+
+    if (isFailed) {
+      wrapperEl.appendChild(createFallbackElement(phaseIndex, imageUrl));
+    } else {
+      const imgEl = document.createElement("img");
+      imgEl.className = "wreath-image";
+      imgEl.setAttribute("src", String(imageUrl));
+      imgEl.setAttribute("alt", meta.fullLabel);
       imgEl.addEventListener("error", () => {
         this._failedImages.add(imageUrl);
         this._lastRenderSignature = "";
         this._render();
       });
+      wrapperEl.appendChild(imgEl);
     }
+
+    cardEl.appendChild(wrapperEl);
+
+    if (this._config.show_status) {
+      const badgeEl = document.createElement("div");
+      badgeEl.className = "status-badge";
+
+      const labelSpan = document.createElement("span");
+      labelSpan.textContent = meta.shortLabel;
+      badgeEl.appendChild(labelSpan);
+
+      if (isTestMode) {
+        const pillSpan = document.createElement("span");
+        pillSpan.className = "test-pill";
+        pillSpan.textContent = testLabel;
+        badgeEl.appendChild(pillSpan);
+      }
+
+      cardEl.appendChild(badgeEl);
+    }
+
+    this.shadowRoot.appendChild(cardEl);
   }
 
   getCardSize() {
@@ -595,7 +644,14 @@ class AdventskranzCardEditor extends HTMLElement {
     for (const key of fields) {
       const el = this.shadowRoot.querySelector(`[data-field="${key}"]`);
       if (el && document.activeElement !== el) {
-        el.value = this._config[key] ?? "";
+        let val = this._config[key] ?? "";
+        if (key.startsWith("image_")) {
+          const idx = Number(key.split("_")[1]);
+          if (val === LEGACY_IMAGES[idx]) {
+            val = DEFAULT_IMAGES[idx];
+          }
+        }
+        el.value = val;
       }
     }
     const checkboxes = ["show_status", "transparent", "use_sensor"];
@@ -619,17 +675,30 @@ class AdventskranzCardEditor extends HTMLElement {
     const meta = PHASE_META[calcPhase];
     const isSimulated = Boolean(parseLocalDateString(this._config.test_date));
 
-    infoEl.innerHTML = `
-      <div><strong>${isSimulated ? "Simuliertes Datum" : "Heutiges Datum"} (${formatGermanDate(refDate)}):</strong> → <strong>${meta.shortLabel}</strong> (Bild ${calcPhase + 1})</div>
-      <div style="margin-top:4px; font-size: 0.78rem; opacity: 0.9;">
-        Berechnete Termine ${refDate.getFullYear()}:
-        1. Adv: ${formatGermanDate(dates.advent1)} |
-        2. Adv: ${formatGermanDate(dates.advent2)} |
-        3. Adv: ${formatGermanDate(dates.advent3)} |
-        4. Adv: ${formatGermanDate(dates.advent4)} |
-        Abgebrannt ab: ${formatGermanDate(dates.sundayAfterAdvent4)}
-      </div>
-    `;
+    infoEl.textContent = "";
+
+    const line1 = document.createElement("div");
+    const strongDate = document.createElement("strong");
+    strongDate.textContent = `${isSimulated ? "Simuliertes Datum" : "Heutiges Datum"} (${formatGermanDate(refDate)}):`;
+    const arrowText = document.createTextNode(" → ");
+    const strongPhase = document.createElement("strong");
+    strongPhase.textContent = meta.shortLabel;
+    const imgText = document.createTextNode(` (Bild ${calcPhase + 1})`);
+    line1.append(strongDate, arrowText, strongPhase, imgText);
+
+    const line2 = document.createElement("div");
+    line2.style.marginTop = "4px";
+    line2.style.fontSize = "0.78rem";
+    line2.style.opacity = "0.9";
+    line2.textContent =
+      `Berechnete Termine ${refDate.getFullYear()}: ` +
+      `1. Adv: ${formatGermanDate(dates.advent1)} | ` +
+      `2. Adv: ${formatGermanDate(dates.advent2)} | ` +
+      `3. Adv: ${formatGermanDate(dates.advent3)} | ` +
+      `4. Adv: ${formatGermanDate(dates.advent4)} | ` +
+      `Abgebrannt ab: ${formatGermanDate(dates.sundayAfterAdvent4)}`;
+
+    infoEl.append(line1, line2);
   }
 
   _render() {

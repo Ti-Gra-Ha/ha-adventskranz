@@ -1,17 +1,19 @@
 {
   "domain": "adventskranz",
   "name": "Adventskranz",
+  "after_dependencies": ["frontend", "http", "lovelace"],
   "categories": [
     "productivity_information.calendars_todos",
     "helpers.calculate_value"
   ],
   "codeowners": ["@Ti-Gra-Ha"],
   "config_flow": true,
-  "dependencies": ["frontend", "http", "lovelace"],
+  "dependencies": [],
   "documentation": "https://github.com/Ti-Gra-Ha/ha-adventskranz",
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/Ti-Gra-Ha/ha-adventskranz/issues",
   "requirements": [],
-  "version": "1.2.4"
+  "single_config_entry": true,
+  "version": "1.2.5"
 }
