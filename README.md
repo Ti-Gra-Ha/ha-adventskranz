@@ -1,7 +1,7 @@
 # 🕯️ Adventskranz – Home Assistant Integration & Custom Dashboard Card
 
 <p align="center">
-  <img src="custom_components/adventskranz/brand/logo.png" alt="Adventskranz Logo" width="220" />
+  <img src="custom_components/adventskranz/brand/icon@2x.png" alt="Adventskranz Logo" width="220" />
 </p>
 
 <p align="center">
